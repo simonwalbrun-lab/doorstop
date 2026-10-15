@@ -2,6 +2,8 @@
 
 - Fixed importing over existing items: items stored in subfolders of a document now stay in their folder instead of being moved to the document root.
 - Fixed publishing with templates: several documents may now have a `template` folder, only the folder providing the requested template is copied, and a single document can use a template from another document in its tree.
+- Improved speed on large trees: A change plus validation on 500 items went from about 23 s to about 2 s on Windows.
+  - The export, import and publish modules (`markdown` and `openpyxl`) are now loaded on first use, which speeds up every command;
 
 # 3.2 (2026-07-09)
 

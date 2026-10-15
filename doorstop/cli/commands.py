@@ -8,7 +8,7 @@ from typing import Set
 
 from doorstop import common, server
 from doorstop.cli import utilities
-from doorstop.core import editor, exporter, importer, publisher
+from doorstop.core import editor
 from doorstop.core.builder import build
 
 log = common.logger(__name__)
@@ -436,6 +436,9 @@ def run_import(args, cwd, error, catch=True, _tree=None):
     :param catch: catch and log :class:`~doorstop.common.DoorstopError`
 
     """
+    # Imported here: they load openpyxl and markdown, which other commands never use.
+    from doorstop.core import importer  # pylint: disable=import-outside-toplevel
+
     document = item = None
     attrs = utilities.literal_eval(args.attrs, error)
     mapping = utilities.literal_eval(args.map, error)
@@ -498,6 +501,8 @@ def run_export(args, cwd, error, catch=True, auto=False, _tree=None):
     :param auto: include placeholders for new items on import
 
     """
+    from doorstop.core import exporter  # pylint: disable=import-outside-toplevel
+
     whole_tree = args.prefix == "all"
     ext = utilities.get_ext(args, error, ".yml", ".csv", whole_tree=whole_tree)
 
@@ -545,6 +550,8 @@ def run_publish(args, cwd, error, catch=True):
     :param catch: catch and log :class:`~doorstop.common.DoorstopError`
 
     """
+    from doorstop.core import publisher  # pylint: disable=import-outside-toplevel
+
     whole_tree = args.prefix == "all"
     ext = utilities.get_ext(args, error, ".txt", ".html", whole_tree)
 

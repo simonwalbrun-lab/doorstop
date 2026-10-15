@@ -3,7 +3,9 @@
 """Unit tests for the doorstop.cli.main module."""
 
 import importlib.util
+import subprocess
 import sys
+import unittest
 from os import sep
 from unittest.mock import Mock, patch
 
@@ -84,3 +86,19 @@ class TestMain(SettingsTestCase):
             spec.loader.exec_module(runpy)
             # Assert
             self.assertIsNotNone(runpy)
+
+
+class TestImports(unittest.TestCase):
+    """Tests for what the command-line interface imports at startup."""
+
+    def test_startup_skips_export_and_publish_modules(self):
+        """Verify starting the CLI does not load the export and publish modules."""
+        code = (
+            "import sys, doorstop.cli.main; "
+            "print(sorted(m for m in ('openpyxl', 'doorstop.core.exporter', "
+            "'doorstop.core.importer', 'doorstop.core.publisher') if m in sys.modules))"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", code], capture_output=True, text=True, check=True
+        )
+        self.assertEqual("[]", result.stdout.strip())
