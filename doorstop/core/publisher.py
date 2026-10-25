@@ -24,6 +24,7 @@ def publish(
     matrix=None,
     template=None,
     toc=True,
+    publisher=None,
     **kwargs,
 ):
     """Publish an object to a given format.
@@ -39,6 +40,7 @@ def publish(
     :param linkify: turn links into hyperlinks (for Markdown, HTML or LaTeX)
     :param index: create an index.html (for HTML)
     :param matrix: create a traceability matrix, traceability.csv
+    :param publisher: publisher instance to use instead of the one for `ext`
 
     :raises: :class:`doorstop.common.DoorstopError` for unknown file formats
 
@@ -52,7 +54,7 @@ def publish(
 
     # Determine the output format
     ext = ext or os.path.splitext(path)[-1] or ".html"
-    publisher = check(ext, obj=obj)
+    publisher = publisher or check(ext, obj=obj)
 
     # Setup publisher.
     publisher.setPath(path)

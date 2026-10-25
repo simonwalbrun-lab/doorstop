@@ -8,11 +8,12 @@ import os
 import unittest
 from secrets import token_hex
 from shutil import rmtree
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 from doorstop.common import DoorstopError
 from doorstop.core import publisher
 from doorstop.core.builder import build
+from doorstop.core.publishers.html import HtmlPublisher
 from doorstop.core.tests import EMPTY, ROOT, MockDataMixIn
 from doorstop.core.tests.helpers import on_error_with_retry
 
@@ -47,6 +48,21 @@ class TestModule(MockDataMixIn, unittest.TestCase):
         self.assertRaises(
             DoorstopError, publisher.publish, self.document, "a.txt", ".a"
         )
+
+    @patch("doorstop.core.publisher.check")
+    def test_publish_custom_publisher(self, mock_check):
+        """Verify a given publisher is used instead of the one for the format."""
+        custom = MagicMock(spec=HtmlPublisher)
+        custom.getDocumentPath.return_value = os.path.join(self.dirpath, "doc.html")
+        custom.getAssetsPath.return_value = os.path.join(self.dirpath, "assets")
+        custom.getIndex.return_value = False
+        custom.getTemplate.return_value = ""
+        os.makedirs(self.dirpath)
+        publisher.publish(self.mock_tree, self.dirpath, ".html", publisher=custom)
+        mock_check.assert_not_called()
+        custom.setPath.assert_called_once_with(self.dirpath)
+        custom.setup.assert_called_once()
+        self.assertEqual(len(self.mock_tree.documents), custom.publishAction.call_count)
 
     @patch("doorstop.core.vcs.find_root", Mock(return_value=EMPTY))
     def test_nothing_to_publish(self):

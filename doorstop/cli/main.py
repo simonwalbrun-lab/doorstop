@@ -163,6 +163,7 @@ def main(args=None):  # pylint: disable=R0915
     _import(subs, shared)
     _export(subs, shared)
     _publish(subs, shared)
+    _diff(subs, shared)
 
     # Parse arguments
     args = parser.parse_args(args=args)
@@ -543,6 +544,37 @@ def _publish(subs, shared):
         help="Generate top level index (when producing markdown).",
         action="store_true",
     )
+
+
+def _diff(subs, shared):
+    """Configure the `doorstop diff` subparser."""
+    info = "publish the changes between two git revisions as HTML"
+    sub = subs.add_parser(
+        "diff", description=info.capitalize() + ".", help=info, **shared
+    )
+    sub.add_argument("prefix", help="prefix of document to compare or 'all'")
+    sub.add_argument("path", help="path to published file or directory for 'all'")
+    sub.add_argument("old", help="older revision: tag, commit hash or branch")
+    sub.add_argument(
+        "new", nargs="?", help="newer revision (default: the working state)"
+    )
+    sub.add_argument(
+        "--changed-only",
+        action="store_true",
+        help="only include added, removed and changed items",
+    )
+    sub.add_argument(
+        "-C",
+        "--no-child-links",
+        action="store_true",
+        help="do not include child links on items",
+    )
+    sub.add_argument(
+        "--no-levels",
+        choices=["all", "body"],
+        help="do not include levels on heading and non-heading or non-heading items",
+    )
+    sub.add_argument("--template", help="template file", default=None)
 
 
 if __name__ == "__main__":
