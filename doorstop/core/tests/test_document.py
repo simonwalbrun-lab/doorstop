@@ -104,9 +104,9 @@ settings:
 attributes:
   defaults:
     i: j
-doc:
-  title: Title
-  major: '2'
+  doc:
+    title: Title
+    major: '2'
 """.lstrip()
 
 YAML_LEGACY_DOC = """
@@ -127,7 +127,8 @@ settings:
   digits: 3
   prefix: REQ
   sep: ''
-doc: not a mapping
+attributes:
+  doc: not a mapping
 """.lstrip()
 
 YAML_INCLUDE_DEFAULTS = """
@@ -323,8 +324,7 @@ class TestDocument(unittest.TestCase):
         """Verify saving of the doc section."""
         self.document._attributes_doc = {"title": "Title"}
         self.document.save()
-        self.assertIn("doc:\n  title: Title", self.document._file)
-        self.assertNotIn("attributes:", self.document._file)
+        self.assertIn("attributes:\n  doc:\n    title: Title", self.document._file)
 
     def test_no_save_missing_custom_defaults(self):
         """Verify not saving of missing custom default attributes."""

@@ -5,38 +5,38 @@
 # pylint: disable=unused-argument,protected-access
 
 YAML_LATEX_DOC = """
-doc:
-  name: 'Tutorial'
-  title: 'Development test document'
-  ref: 'TUT-DS-22'
-  by: 'Jng'
-  major: '1'
-  minor: 'A'
-  copyright: 'Whatever Inc.'
 settings:
   digits: 3
   prefix: REQ
   sep: '-'
 attributes:
+  doc:
+    name: 'Tutorial'
+    title: 'Development test document'
+    ref: 'TUT-DS-22'
+    by: 'Jng'
+    major: '1'
+    minor: 'A'
+    copyright: 'Whatever Inc.'
   publish:
     - CUSTOM-ATTRIB
     - invented-by
 """
 
 YAML_LATEX_EMPTY_DOC = """
-doc:
-  name: ''
-  title: ''
-  ref: ''
-  by: ''
-  major: ''
-  minor: ''
-  copyright: ''
 settings:
   digits: 3
   prefix: TST
   sep: '-'
 attributes:
+  doc:
+    name: ''
+    title: ''
+    ref: ''
+    by: ''
+    major: ''
+    minor: ''
+    copyright: ''
   publish:
     - CUSTOM-ATTRIB
 """
@@ -73,13 +73,13 @@ attributes:
 """
 
 YAML_LATEX_ONLY_REF = """
-doc:
-  ref: 'TUT-DS-22'
 settings:
   digits: 3
   prefix: TST
   sep: '-'
 attributes:
+  doc:
+    ref: 'TUT-DS-22'
   publish:
     - CUSTOM-ATTRIB
     - invented-by

@@ -231,18 +231,16 @@ class Document(BaseValidatable, BaseFileObject):  # pylint: disable=R0902
                 self._extended_reviewed = sorted(set(v for v in value))
             elif key == "publish":
                 self._attribute_publish = value
+            elif key == "doc":
+                if value is not None and not isinstance(value, dict):
+                    msg = "invalid value for 'doc' in: {}".format(self.config)
+                    raise DoorstopError(msg)
+                self._attributes_doc = value
             else:
                 msg = "unexpected attributes configuration '{}' in: {}".format(
                     key, self.config
                 )
                 raise DoorstopError(msg)
-        # Store document metadata used when publishing
-        self._attributes_doc = data.get("doc")
-        if self._attributes_doc is not None and not isinstance(
-            self._attributes_doc, dict
-        ):
-            msg = "invalid value for 'doc' in: {}".format(self.config)
-            raise DoorstopError(msg)
         # Legacy location: under 'defaults' it would be copied into every new item
         if isinstance(self._attribute_defaults, dict) and (
             "doc" in self._attribute_defaults
@@ -250,7 +248,7 @@ class Document(BaseValidatable, BaseFileObject):  # pylint: disable=R0902
             legacy = self._attribute_defaults.pop("doc")
             log.warning(
                 "'attributes: defaults: doc:' is deprecated,"
-                " use a top-level 'doc:' section in: {}".format(self.config)
+                " use 'attributes: doc:' in: {}".format(self.config)
             )
             if self._attributes_doc is None:
                 self._attributes_doc = legacy
@@ -284,10 +282,10 @@ class Document(BaseValidatable, BaseFileObject):  # pylint: disable=R0902
             attributes["defaults"] = self._attribute_defaults
         if self._extended_reviewed:
             attributes["reviewed"] = self._extended_reviewed
+        if self._attributes_doc:
+            attributes["doc"] = self._attributes_doc
         if attributes:
             data["attributes"] = attributes
-        if self._attributes_doc:
-            data["doc"] = self._attributes_doc
         # Dump the data to YAML
         text = self._dump(data)
         # Save the YAML to file

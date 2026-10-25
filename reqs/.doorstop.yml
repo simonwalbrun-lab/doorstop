@@ -2,11 +2,12 @@ settings:
   digits: 3
   prefix: REQ
   sep: ''
-doc:
-  name: 'Requirements'
-  title: 'Requirements for _Doorstop_'
-  ref: 'REQ-DS-2024'
-  by: 'Wfg'
-  major: '1'
-  minor: 'A'
-  copyright: 'Doorstop'
+attributes:
+  doc:
+    name: 'Requirements'
+    title: 'Requirements for _Doorstop_'
+    ref: 'REQ-DS-2024'
+    by: 'Wfg'
+    major: '1'
+    minor: 'A'
+    copyright: 'Doorstop'

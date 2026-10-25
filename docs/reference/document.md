@@ -56,28 +56,6 @@ Requirement items can be stored in different file formats. The two types
 currently supported are `yaml` and `markdown`. See the [item](item.md)
 documentation for more details. The default format is `yaml`.
 
-## `doc`
-
-Optional metadata used on the title page when the document is published
-(LaTeX, HTML, Markdown). It is not copied into items.
-
-```yaml
-doc:
-  name: 'Requirements'
-  title: 'Requirements for _Doorstop_'
-  ref: 'REQ-DS-2024'
-  by: 'Wfg'
-  major: '1'
-  minor: 'A'
-  copyright: 'Doorstop'
-```
-
-All keys are optional. An empty `name` falls back to `doc-<prefix>`.
-
-Older configurations put this block under `attributes: defaults: doc:`. That
-still works but is deprecated and logs a warning, because `defaults` is meant
-for values copied into every new item.
-
 # Extended Document Attributes
 
 In addition to the standard attributes, Doorstop will allow any number of custom
@@ -94,6 +72,29 @@ Extended document attributes fall under here.
 Defines the [defaults for extended
 attributes](item.md#defaults-for-extended-attributes). This is an optional
 document configuration option.
+
+### `doc`
+
+Optional metadata used on the title page when the document is published
+(LaTeX, HTML, Markdown). It is not copied into items.
+
+```yaml
+attributes:
+  doc:
+    name: 'Requirements'
+    title: 'Requirements for _Doorstop_'
+    ref: 'REQ-DS-2024'
+    by: 'Wfg'
+    major: '1'
+    minor: 'A'
+    copyright: 'Doorstop'
+```
+
+All keys are optional. An empty `name` falls back to `doc-<prefix>`.
+
+Older configurations put this block under `attributes: defaults: doc:`. That
+still works but is deprecated and logs a warning, because `defaults` is meant
+for values copied into every new item.
 
 ### `reviewed`
 

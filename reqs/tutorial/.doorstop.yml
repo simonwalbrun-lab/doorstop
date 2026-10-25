@@ -4,14 +4,13 @@ settings:
   prefix: TUT
   sep: ''
 attributes:
-  defaults:
-    doc:
-      name: 'Tutorial'
-      title: 'Tutorial for _Doorstop_ requirements management'
-      ref: 'TUT-DS-2024'
-      by: 'Wfg'
-      major: '1'
-      minor: 'A'
-      copyright: 'Doorstop'
+  doc:
+    name: 'Tutorial'
+    title: 'Tutorial for _Doorstop_ requirements management'
+    ref: 'TUT-DS-2024'
+    by: 'Wfg'
+    major: '1'
+    minor: 'A'
+    copyright: 'Doorstop'
   publish:
     - CUSTOM-ATTRIB
