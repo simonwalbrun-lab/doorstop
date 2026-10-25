@@ -171,3 +171,26 @@ Steamboat Willie **shall** whistle while he is driving his boat.
 ```
 
 More information about attributes can be found in the [item](../reference/item.md#extended-item-attributes) description and [document](../reference/document.md#extended-document-attributes) extended attributes sections.
+# Comparing revisions
+
+`doorstop diff` publishes the changes between two git revisions as HTML. The pages look like the output of `doorstop publish all`, but each change is marked inside the affected item:
+
+```sh
+$ doorstop diff all ./dist/diff v1.0 v1.1
+$ doorstop diff all ./dist/diff a1b2c3d e4f5a6b --changed-only
+$ doorstop diff SRD ./dist/diff v1.0
+```
+
+The arguments are the document prefix (or `all`), the output path, the older revision and, optionally, the newer revision. A revision is a tag, a full or abbreviated commit hash, a branch name, or anything else git accepts. Without the newer revision, the older one is compared with the files on disk, including uncommitted and untracked changes.
+
+Every page starts with both revisions and the number of added, removed and changed items. Changes are shown with colour bars and background colours, not labels:
+
+* added items have a green bar and are underlined, and removed items have a red bar and are struck through at their former position;
+* changed items have an amber bar. Inside them, deleted words have a red background and are struck through, and inserted words have a green background and are underlined;
+* added and removed links are marked the same way;
+* if a picture linked in the text (for example `![Flow](assets/flow.png)`) changed, the old and the new picture are shown next to each other, even when the text is unchanged;
+* items are matched by their UID. An item whose file name changed shows as the old item removed and the new item added. An item file moved to another folder is unchanged unless its content changed.
+
+Only what the published page shows is compared. Review stamps, link stamps and attributes the page does not show, for example `normative`, are not part of the diff. Changes caused only by file formatting, such as re-wrapped text, key order or YAML versus Markdown items, are not marked either. `--changed-only` leaves out the unchanged items. The options `--no-child-links`, `--no-levels` and `--template` work as for `doorstop publish`.
+
+Revision diffs need a git repository. The repository is only read: the working tree, the index and the current branch stay unchanged.
