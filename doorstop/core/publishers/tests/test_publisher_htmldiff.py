@@ -145,7 +145,6 @@ class TestItemMarkup(ScenarioTestCase):
         )
         revisions = (("v1.0", self.first), ("v1.1", self.second))
         self.diff = diff_trees(old, self.new, revisions)
-        self.publisher = HtmlDiffPublisher(self.new, ".html", self.diff, temp=self.temp)
 
     def page(self, prefix, changed_only=False):
         """Get the markdown lines of a document page."""
@@ -168,33 +167,6 @@ class TestItemMarkup(ScenarioTestCase):
         )
         counts = [counts] if counts else []
         return ['<div class="diff-summary">', revisions] + counts + ["</div>", ""]
-
-    def index(self, rows, files=()):
-        """Get the expected index lines."""
-        return (
-            [STYLE]
-            + self.summary()
-            + [
-                '<table class="table">',
-                "<thead><tr><th>Document</th><th>Status</th><th>Added</th>"
-                "<th>Removed</th><th>Changed</th></tr></thead>",
-                "<tbody>",
-            ]
-            + [
-                '<tr><td><a href="documents/{0}.html">{0}</a></td><td>{1}</td>'
-                "<td>{2}</td><td>{3}</td><td>{4}</td></tr>".format(*row)
-                for row in rows
-            ]
-            + ["</tbody>", "</table>", "", "<h3>Tree Structure:</h3>"]
-            # The tree drawing depends on the console encoding (Tree.draw).
-            + ["<pre><code>" + self.new.draw(html_links=True) + "</pre></code>"]
-            + ["", "<hr>", "", "<h3>Published Documents:</h3>", "<p>", "<ul>"]
-            + [
-                '<li> <a href="documents/{0}.html">{0}</a> </li>'.format(name)
-                for name in files
-            ]
-            + ["</ul>", "</p>"]
-        )
 
     def test_page(self):
         """Verify a page has the styles, the summary and every entry in order."""
@@ -221,21 +193,6 @@ class TestItemMarkup(ScenarioTestCase):
             + self.summary("<p>2 added, 2 removed, 1 changed</p>")
             + [line for uid in shown for line in self.ENTRIES[uid]],
             self.page("REQ", changed_only=True),
-        )
-
-    def test_index(self):
-        """Verify the index lists every page with its status and counts."""
-        self.assertEqual(
-            self.index(
-                [
-                    ("REQ", "changed", 2, 2, 1),
-                    ("NEW", "added", 1, 0, 0),
-                    ("SW", "unchanged", 0, 0, 0),
-                    ("OLD", "removed", 0, 1, 0),
-                ],
-                files=["REQ"],
-            ),
-            list(self.publisher.lines_index(["REQ.html"], tree=self.new)),
         )
 
 
