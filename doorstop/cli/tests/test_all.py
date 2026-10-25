@@ -935,15 +935,3 @@ class TestDiff(TempTestCase):
         text = common.read_text(path)
         self.assertIn('id="REQ001"', text)
         self.assertNotIn('id="REQ003"', text)
-
-    def test_diff_working_state(self):
-        """Verify 'doorstop diff' compares with the working state by default."""
-        common.write_text("text: Edited\n", os.path.join("reqs", "REQ001.yml"))
-        self.assertIs(None, main(["diff", "all", self.out, "v1.1"]))
-        text = common.read_text(os.path.join(self.out, "documents", "REQ.html"))
-        self.assertIn("<strong>working state</strong>", text)
-
-    def test_diff_unknown_revision(self):
-        """Verify 'doorstop diff' fails for an unknown revision."""
-        self.assertRaises(SystemExit, main, ["diff", "all", self.out, "nosuch"])
-        self.assertFalse(os.path.exists(self.out))

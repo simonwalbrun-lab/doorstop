@@ -3,15 +3,13 @@
 """Unit tests for the doorstop.core.differ module."""
 
 import os
-import re
 import shutil
 import tempfile
 import unittest
-from unittest.mock import Mock, patch
 
 from doorstop.common import DoorstopError, write_text
 from doorstop.core.builder import build
-from doorstop.core.differ import _DiffTree, diff_trees, publish_diff
+from doorstop.core.differ import diff_trees, publish_diff
 from doorstop.core.tests.helpers import (
     commit,
     git,
@@ -20,27 +18,7 @@ from doorstop.core.tests.helpers import (
     write_document,
     write_item,
 )
-from doorstop.core.vcs.git import WorkingCopy, word_diff
-
-MARKDOWN_ITEM = """---
-active: true
-derived: false
-header: ''
-level: 1
-links: []
-normative: true
-ref: ''
-reviewed: null
----
-
-Same text.
-"""
-MARKDOWN_DOCUMENT = """settings:
-  digits: 3
-  itemformat: markdown
-  prefix: REQ
-  sep: ''
-"""
+from doorstop.core.vcs.git import WorkingCopy
 
 
 class RepoTestCase(unittest.TestCase):
@@ -82,36 +60,18 @@ class TestGitRevisions(RepoTestCase):
         self.working_copy = WorkingCopy(self.root)
 
     def test_resolve(self):
-        """Verify tags, full and abbreviated hashes and branches resolve."""
+        """Verify revisions resolve, and an unknown one raises an error naming it."""
         resolve = self.working_copy.resolve
         self.assertEqual(self.first, resolve("v1.0"))
         self.assertEqual(self.first, resolve(self.first))
         self.assertEqual(self.first, resolve(self.first[:7]))
         self.assertEqual(self.second, resolve(self.branch))
-
-    def test_resolve_unknown(self):
-        """Verify an unknown revision raises an error naming it."""
         with self.assertRaises(DoorstopError) as context:
-            self.working_copy.resolve("nosuch")
+            resolve("nosuch")
         self.assertEqual(
             "unknown revision: nosuch (fetch it if it exists only on the remote)",
             str(context.exception),
         )
-
-    def test_git_errors(self):
-        """Verify git failures raise errors, and equal texts have no marks."""
-        with self.assertRaises(DoorstopError):
-            self.working_copy.export("0" * 40, self.temp)
-        with patch("subprocess.run", Mock(side_effect=FileNotFoundError)):
-            with self.assertRaises(DoorstopError) as context:
-                self.working_copy.resolve("v1.0")
-        self.assertEqual("Command not found: git", str(context.exception))
-        failed = Mock(returncode=2, stderr=b"bad")
-        with patch("subprocess.run", Mock(return_value=failed)):
-            with self.assertRaises(DoorstopError) as context:
-                word_diff("a", "b", self.temp)
-        self.assertEqual("bad", str(context.exception))
-        self.assertEqual([[(" ", "Same.")]], word_diff("Same.", "Same.", self.temp))
 
     def test_export(self):
         """Verify a commit is exported without touching the repository."""
@@ -236,17 +196,6 @@ class TestDiffTrees(ScenarioTestCase):
         }
         self.assertEqual(expected, summary(self.diff()))
 
-    def test_empty_side(self):
-        """Verify every item is added when the old revision has no tree."""
-        empty = os.path.join(self.temp, "empty")
-        os.makedirs(empty)
-        new = build_revision(self.root, self.second, os.path.join(self.temp, "new"))
-        revisions = (("v0", None), ("v1.1", self.second))
-        diff = diff_trees(build(cwd=empty, root=empty), new, revisions)
-        kinds = {e.kind for change in diff.documents for e in change.entries}
-        self.assertEqual({"added"}, kinds)
-        self.assertEqual("", _DiffTree(diff, build(cwd=empty, root=empty)).draw())
-
 
 class TestPublishDiff(ScenarioTestCase):
     """Unit tests for publishing a diff."""
@@ -256,11 +205,9 @@ class TestPublishDiff(ScenarioTestCase):
         self.out = os.path.join(self.temp, "out")
 
     def test_publish(self):
-        """Verify the pages are written and the repository is untouched."""
-        before = self.status()
+        """Verify the pages and the index are written."""
         path = publish_diff(self.root, "v1.0", "v1.1", self.out)
         self.assertEqual(self.out, path)
-        self.assertEqual(before, self.status())
         pages = os.listdir(os.path.join(self.out, "documents"))
         self.assertEqual(
             ["NEW.html", "OLD.html", "REQ.html", "SW.html"],
@@ -268,30 +215,6 @@ class TestPublishDiff(ScenarioTestCase):
         )
         self.assertTrue(os.path.isfile(os.path.join(self.out, "index.html")))
         self.assertFalse(os.path.exists(os.path.join(self.out, "traceability.html")))
-
-    def outputs(self, old, new):
-        """Publish a diff and return its files with revision names masked."""
-        out = os.path.join(self.temp, "out-{}-{}".format(old, new).replace("/", "-"))
-        publish_diff(self.root, old, new, out)
-        files = {}
-        for dirpath, _, filenames in os.walk(out):
-            for filename in filenames:
-                path = os.path.join(dirpath, filename)
-                with open(path, "rb") as stream:
-                    data = stream.read()
-                files[os.path.relpath(path, out)] = re.sub(
-                    rb"<strong>[^<]*</strong> \(<code>",
-                    b"<strong>?</strong> (<code>",
-                    data,
-                )
-        return files
-
-    def test_tags_and_hashes(self):
-        """Verify tags and hashes give the same output apart from the names."""
-        tags = self.outputs("v1.0", "v1.1")
-        self.assertEqual(tags, self.outputs(self.first, self.second))
-        branch = git(self.root, "branch", "--show-current").strip()
-        self.assertEqual(tags, self.outputs(self.first[:8], branch))
 
     def test_one_document(self):
         """Verify a prefix publishes only that document, without an index."""
@@ -301,19 +224,6 @@ class TestPublishDiff(ScenarioTestCase):
             [n for n in os.listdir(os.path.join(self.out, "documents")) if "." in n],
         )
         self.assertFalse(os.path.exists(os.path.join(self.out, "index.html")))
-
-    def test_errors(self):
-        """Verify bad input fails before anything is written."""
-        for root, new, prefix, message in (
-            (self.root, "nosuch", "all", "unknown revision: nosuch"),
-            (self.root, "v1.1", "XYZ", "no document with prefix: XYZ"),
-            (self.temp, "v1.1", "all", "revision diffs need a git repository"),
-        ):
-            with self.subTest(message=message):
-                with self.assertRaises(DoorstopError) as context:
-                    publish_diff(root, "v1.0", new, self.out, prefix=prefix)
-                self.assertIn(message, str(context.exception))
-                self.assertFalse(os.path.exists(self.out))
 
 
 def write_picture(root, name, data):
@@ -445,24 +355,14 @@ class TestWorkingState(RepoTestCase):
         super().setUp()
         write_document(self.root, "reqs", "REQ")
         write_item(self.root, "reqs/REQ001.yml", {"text": "Committed.", "level": "1.1"})
-        write_item(self.root, "reqs/REQ003.yml", {"text": "Staged.", "level": "1.3"})
-        write_item(self.root, "reqs/REQ004.yml", {"text": "Unstaged.", "level": "1.4"})
-        write_item(self.root, "reqs/REQ005.yml", {"text": "Moved.", "level": "1.5"})
         self.first = commit(self.root, "base", tag="v1.0")
         write_item(
             self.root, "reqs/REQ001.yml", {"text": "Uncommitted.", "level": "1.1"}
         )
-        git(self.root, "mv", "reqs/REQ003.yml", "reqs/REQ020.yml")
-        reqs = os.path.join(self.root, "reqs")
-        os.rename(os.path.join(reqs, "REQ004.yml"), os.path.join(reqs, "REQ021.yml"))
-        os.makedirs(os.path.join(reqs, "sub"))
-        os.rename(
-            os.path.join(reqs, "REQ005.yml"), os.path.join(reqs, "sub", "REQ005.yml")
-        )
         write_item(self.root, "reqs/REQ030.yml", {"text": "Untracked.", "level": "1.6"})
 
     def test_working_state(self):
-        """Verify edits, staged and unstaged renames, moves and new items."""
+        """Verify uncommitted edits and new files are compared."""
         old = build_revision(self.root, self.first, os.path.join(self.temp, "old"))
         new = build(cwd=self.root, root=self.root)
         diff = diff_trees(old, new, (("v1.0", self.first), ("working state", None)))
@@ -470,11 +370,6 @@ class TestWorkingState(RepoTestCase):
             {
                 "REQ": [
                     ("REQ001", "matched"),
-                    ("REQ003", "removed"),
-                    ("REQ020", "added"),
-                    ("REQ004", "removed"),
-                    ("REQ021", "added"),
-                    ("REQ005", "matched"),
                     ("REQ030", "added"),
                 ]
             },

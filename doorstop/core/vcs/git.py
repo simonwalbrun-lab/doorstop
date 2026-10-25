@@ -145,6 +145,4 @@ def word_diff(old: str, new: str, temp: str) -> List[List[Tuple[str, str]]]:
             line = []
         elif started and row[:1] in (" ", "-", "+"):
             line.append((row[0], row[1:]))
-    if not started:  # equal texts: git prints nothing
-        return [[(" ", text)] for text in new.split("\n")]
     return lines

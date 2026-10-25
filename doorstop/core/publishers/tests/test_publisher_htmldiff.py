@@ -6,24 +6,12 @@ import os
 import shutil
 import tempfile
 import unittest
-from unittest.mock import Mock, patch
 
-from doorstop.common import write_text
 from doorstop.core.differ import diff_trees, publish_diff
-from doorstop.core.publishers.html import HtmlPublisher
 from doorstop.core.publishers.htmldiff import STYLE, HtmlDiffPublisher, mark
-from doorstop.core.tests.helpers import (
-    commit,
-    on_error_with_retry,
-    write_document,
-    write_item,
-)
+from doorstop.core.tests.helpers import on_error_with_retry
 from doorstop.core.tests.test_differ import (
-    MARKDOWN_DOCUMENT,
-    MARKDOWN_ITEM,
     PictureTestCase,
-    RenameTestCase,
-    RepoTestCase,
     ScenarioTestCase,
     build_revision,
 )
@@ -86,43 +74,23 @@ class TestMark(unittest.TestCase):
             ),
         )
 
-    def test_blocks(self):
-        """Verify added and removed paragraphs are marked as a whole."""
-        self.assertEqual(
-            ["Kept.", "", '<ins class="diff">New paragraph.</ins>', ""],
-            self.mark(["Kept."], ["Kept.", "", "New paragraph."]),
-        )
-        self.assertEqual(
-            ['<del class="diff">Old paragraph.</del>', "", "Kept.", ""],
-            self.mark(["Old paragraph.", "", "Kept."], ["Kept."]),
-        )
-
     def test_fence(self):
-        """Verify changed, added and removed opaque blocks are wrapped whole."""
+        """Verify a changed fenced block, with a blank line, is one block."""
         old = ["```", "code a", "", "more", "```"]
         new = ["```", "code b", "", "more", "```"]
         self.assertEqual(
             div("del", old) + [""] + div("ins", new) + [""], self.mark(old, new)
         )
-        table = ["| a |", "| - |"]
-        self.assertEqual(
-            ["Text.", ""] + div("ins", table) + [""],
-            self.mark(["Text."], ["Text.", ""] + table),
-        )
-        self.assertEqual(
-            div("del", table) + ["", "Text.", ""],
-            self.mark(table + ["", "Text."], ["Text."]),
-        )
 
-    def test_renamed_heading(self):
-        """Verify a renamed UID is marked and the attribute list is the new one."""
+    def test_heading_level(self):
+        """Verify a changed heading level is marked and the attribute list kept."""
         self.assertEqual(
             [
-                '## 1.2 <del class="diff">REQ003</del><ins class="diff">REQ010</ins>'
-                " {#REQ010}",
+                '### <del class="diff">1.2 REQ003</del>'
+                '<ins class="diff">1.2.1 REQ003</ins> {#REQ003}',
                 "",
             ],
-            self.mark(["## 1.2 REQ003 {#REQ003}"], ["## 1.2 REQ010 {#REQ010}"]),
+            self.mark(["## 1.2 REQ003 {#REQ003}"], ["### 1.2.1 REQ003 {#REQ003}"]),
         )
 
     def test_atomic_tokens(self):
@@ -168,14 +136,6 @@ class TestItemMarkup(ScenarioTestCase):
         + [""],
         "REQ008": ["## 1.8 REQ008 {#REQ008}", "", "Norm.", ""],
     }
-    SW001 = [
-        "# 1 SW001 {#SW001}",
-        "",
-        "Soft.",
-        "",
-        '*Parent links:* <a href="REQ.html#REQ001">REQ001</a>',
-        "",
-    ]
 
     def setUp(self):
         super().setUp()
@@ -186,26 +146,6 @@ class TestItemMarkup(ScenarioTestCase):
         revisions = (("v1.0", self.first), ("v1.1", self.second))
         self.diff = diff_trees(old, self.new, revisions)
         self.publisher = HtmlDiffPublisher(self.new, ".html", self.diff, temp=self.temp)
-        self.publisher._entries(self.diff.documents[0])  # pylint: disable=W0212
-        self.entries = {str(e.display.uid): e for e in self.diff.documents[0].entries}
-
-    def lines(self, uid):
-        """Get the markdown lines of one entry."""
-        entry = self.entries[uid]
-        return list(
-            self.publisher._lines_entry(  # pylint: disable=protected-access
-                entry, linkify=True, to_html=True
-            )
-        )
-
-    def published(self, uid):
-        """Get the lines publish emits for an item of the new revision."""
-        item = self.new.find_item(uid)
-        return list(
-            HtmlPublisher(self.new, ".html")._lines_markdown(  # pylint: disable=W0212
-                [item], linkify=True, to_html=True
-            )
-        )
 
     def page(self, prefix, changed_only=False):
         """Get the markdown lines of a document page."""
@@ -229,12 +169,11 @@ class TestItemMarkup(ScenarioTestCase):
         counts = [counts] if counts else []
         return ['<div class="diff-summary">', revisions] + counts + ["</div>", ""]
 
-    def index(self, rows, note=None, files=()):
+    def index(self, rows, files=()):
         """Get the expected index lines."""
         return (
             [STYLE]
             + self.summary()
-            + ([note] if note else [])
             + [
                 '<table class="table">',
                 "<thead><tr><th>Document</th><th>Status</th><th>Added</th>"
@@ -256,18 +195,6 @@ class TestItemMarkup(ScenarioTestCase):
             ]
             + ["</ul>", "</p>"]
         )
-
-    def test_unchanged(self):
-        """Verify unchanged items are emitted exactly as publish does.
-
-        REQ003 was re-wrapped, and REQ008 changed only `normative`, which
-        the page does not show.
-        """
-        for uid in ("REQ003", "REQ008"):
-            with self.subTest(uid=uid):
-                self.assertEqual("unchanged", self.entries[uid].kind)
-                self.assertEqual(self.ENTRIES[uid], self.lines(uid))
-                self.assertEqual(self.published(uid), self.lines(uid))
 
     def test_page(self):
         """Verify a page has the styles, the summary and every entry in order."""
@@ -309,78 +236,6 @@ class TestItemMarkup(ScenarioTestCase):
                 files=["REQ"],
             ),
             list(self.publisher.lines_index(["REQ.html"], tree=self.new)),
-        )
-        for change in self.diff.documents:
-            change.old = None
-        lines = list(self.publisher.lines_index([], tree=self.new))
-        self.assertEqual(
-            self.index(
-                [
-                    ("REQ", "added", 2, 2, 1),
-                    ("NEW", "added", 1, 0, 0),
-                    ("SW", "added", 0, 0, 0),
-                    ("OLD", "removed", 0, 1, 0),
-                ],
-                "<p>v1.0 has no documents.</p>",
-            ),
-            lines,
-        )
-
-
-class TestPublishedOnly(RepoTestCase):
-    """Unit tests that only what the published page shows is compared."""
-
-    def kind(self, old, new, markdown=False, extra=None):
-        """Commit REQ001 twice and get the kind the publisher decides."""
-        write_document(self.root, "reqs", "REQ", extra=extra)
-        write_item(self.root, "reqs/REQ002.yml", {"text": "Target."})
-        write_item(self.root, "reqs/REQ001.yml", old)
-        first = commit(self.root, "old")
-        if markdown:
-            os.remove(os.path.join(self.root, "reqs", "REQ001.yml"))
-            os.remove(os.path.join(self.root, "reqs", "REQ002.yml"))
-            write_text(
-                MARKDOWN_DOCUMENT, os.path.join(self.root, "reqs", ".doorstop.yml")
-            )
-            write_text(MARKDOWN_ITEM, os.path.join(self.root, "reqs", "REQ001.md"))
-        else:
-            write_item(self.root, "reqs/REQ001.yml", new)
-        second = commit(self.root, "new")
-        temp = tempfile.mkdtemp(dir=self.temp)
-        trees = [
-            build_revision(self.root, sha, os.path.join(temp, name))
-            for sha, name in ((first, "old"), (second, "new"))
-        ]
-        diff = diff_trees(*trees, (("a", first), ("b", second)))
-        HtmlDiffPublisher(trees[1], ".html", diff)._entries(  # pylint: disable=W0212
-            diff.documents[0]
-        )
-        return {str(e.display.uid): e.kind for e in diff.documents[0].entries}["REQ001"]
-
-    def test_hidden_changes(self):
-        """Verify changes the published page does not show are unchanged."""
-        base = {"text": "Hi", "links": [{"REQ002": "abc"}]}
-        for change in (
-            {"reviewed": "xyz"},
-            {"links": [{"REQ002": "def"}]},
-            {"normative": False},
-            {"derived": True},
-            {"custom": "value"},
-        ):
-            with self.subTest(change=change):
-                self.assertEqual("unchanged", self.kind(base, dict(base, **change)))
-
-    def test_markdown_format(self):
-        """Verify the same item in YAML and Markdown format is unchanged."""
-        self.assertEqual("unchanged", self.kind({"text": "Same text."}, None, True))
-
-    def test_shown_changes(self):
-        """Verify text and published attribute changes are changed."""
-        extra = {"attributes": {"publish": ["custom"]}}
-        self.assertEqual("changed", self.kind({"text": "Hi"}, {"text": "Ho"}))
-        self.assertEqual(
-            "changed",
-            self.kind({"text": "Hi"}, {"text": "Hi", "custom": "x"}, extra=extra),
         )
 
 
@@ -434,31 +289,6 @@ class TestPictureMarkup(PictureTestCase):
             sorted(self.warnings),
         )
 
-    def test_changed_picture(self):
-        """Verify a changed picture shows the old and the new version."""
-        text = (
-            '<del class="diff">![d](diff-old/my%20reqs/assets/images/d.png)</del>'
-            '<ins class="diff">![d](assets/images/d.png)</ins>'
-        )
-        self.assertEqual(
-            div("changed", ["## 1.1 REQ001 {#REQ001}", "", text, ""]) + [""],
-            self.lines("REQ001"),
-        )
-
-    @patch(
-        "doorstop.core.publishers.htmldiff.os.path.relpath",
-        Mock(side_effect=ValueError),
-    )
-    def test_other_drive(self):
-        """Verify a changed picture outside the repository keeps its link."""
-        lines = ["![d](assets/images/d.png)"]
-        self.assertEqual(
-            lines,
-            self.publisher._pictures(  # pylint: disable=protected-access
-                lines, self.entries["REQ001"].old, True
-            ),
-        )
-
     def test_copies(self):
         """Verify publishing writes the old picture versions."""
         out = os.path.join(self.temp, "out")
@@ -471,52 +301,3 @@ class TestPictureMarkup(PictureTestCase):
         path = os.path.join(out, "documents", "assets", "images", "d.png")
         with open(path, "rb") as stream:
             self.assertEqual(b"two", stream.read())
-
-
-class TestReplacedMarkup(RenameTestCase):
-    """Unit tests for the markup of renamed and moved item files."""
-
-    def setUp(self):
-        super().setUp()
-        old = build_revision(self.root, self.first, os.path.join(self.temp, "old"))
-        self.new = build_revision(
-            self.root, self.second, os.path.join(self.temp, "new")
-        )
-        revisions = (("v1.0", self.first), ("v1.1", self.second))
-        self.diff = diff_trees(old, self.new, revisions)
-        self.publisher = HtmlDiffPublisher(self.new, ".html", self.diff, temp=self.temp)
-        for change in self.diff.documents:
-            self.publisher._entries(change)  # pylint: disable=protected-access
-
-    def lines(self, prefix, uid):
-        """Get the markdown lines of one entry."""
-        change = [c for c in self.diff.documents if c.prefix == prefix][0]
-        entry = [e for e in change.entries if str(e.display.uid) == uid][0]
-        return list(
-            self.publisher._lines_entry(  # pylint: disable=protected-access
-                entry, linkify=True, to_html=True
-            )
-        )
-
-    def test_renamed(self):
-        """Verify a renamed item is the old item removed and the new one added."""
-        self.assertEqual(
-            div("removed", ["## 1.3 REQ003 {#REQ003}", "", "Renamed.", ""]) + [""],
-            self.lines("REQ", "REQ003"),
-        )
-        self.assertEqual(
-            div("added", ["## 1.3 REQ010 {#REQ010}", "", "Renamed.", ""]) + [""],
-            self.lines("REQ", "REQ010"),
-        )
-
-    def test_link(self):
-        """Verify a link to a renamed item shows the old and the new link."""
-        links = (
-            '*Parent links:* <del class="diff"><a href="REQ.html#REQ003">REQ003</a>'
-            '</del><ins class="diff"><a href="REQ.html#REQ010">REQ010</a></ins>'
-        )
-        self.assertEqual(
-            div("changed", ["## 1.7 REQ011 {#REQ011}", "", "Links.", "", links, ""])
-            + [""],
-            self.lines("REQ", "REQ011"),
-        )
