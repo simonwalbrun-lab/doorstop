@@ -68,6 +68,7 @@ class Document(BaseValidatable, BaseFileObject):  # pylint: disable=R0902
         # Set default values
         self._attribute_defaults = None
         self._attribute_publish = None
+        self._attributes_doc = None
         self._data["prefix"] = Document.DEFAULT_PREFIX
         self._data["sep"] = Document.DEFAULT_SEP
         self._data["digits"] = Document.DEFAULT_DIGITS  # type: ignore
@@ -235,6 +236,24 @@ class Document(BaseValidatable, BaseFileObject):  # pylint: disable=R0902
                     key, self.config
                 )
                 raise DoorstopError(msg)
+        # Store document metadata used when publishing
+        self._attributes_doc = data.get("doc")
+        if self._attributes_doc is not None and not isinstance(
+            self._attributes_doc, dict
+        ):
+            msg = "invalid value for 'doc' in: {}".format(self.config)
+            raise DoorstopError(msg)
+        # Legacy location: under 'defaults' it would be copied into every new item
+        if isinstance(self._attribute_defaults, dict) and (
+            "doc" in self._attribute_defaults
+        ):
+            legacy = self._attribute_defaults.pop("doc")
+            log.warning(
+                "'attributes: defaults: doc:' is deprecated,"
+                " use a top-level 'doc:' section in: {}".format(self.config)
+            )
+            if self._attributes_doc is None:
+                self._attributes_doc = legacy
 
         self.extensions = data.get("extensions", {})
 
@@ -267,6 +286,8 @@ class Document(BaseValidatable, BaseFileObject):  # pylint: disable=R0902
             attributes["reviewed"] = self._extended_reviewed
         if attributes:
             data["attributes"] = attributes
+        if self._attributes_doc:
+            data["doc"] = self._attributes_doc
         # Dump the data to YAML
         text = self._dump(data)
         # Save the YAML to file

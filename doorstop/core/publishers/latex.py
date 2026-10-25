@@ -719,11 +719,11 @@ class LaTeXPublisher(BasePublisher):
         info_text_set = False
         for external, _ in iter_documents(self.object, self.path, ".tex"):
             # Check for defined document attributes.
-            external_doc_attributes = get_document_attributes(external)
+            external_attributes_doc = get_document_attributes(external)
             # Don't add self.
-            if external_doc_attributes["name"] != doc_attributes["name"]:
+            if external_attributes_doc["name"] != doc_attributes["name"]:
                 # Sanitize external document name for use as filename (replace spaces with hyphens)
-                external_safe_name = external_doc_attributes["name"].replace(" ", "-")
+                external_safe_name = external_attributes_doc["name"].replace(" ", "-")
                 if not info_text_set:
                     wrapper = _add_comment(
                         wrapper,

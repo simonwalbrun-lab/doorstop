@@ -304,8 +304,8 @@ class TestTableOfContents(unittest.TestCase):
         all_trees = []
         for prefix in ("SYS", "HLR", "LLR", "HLT", "LLT"):
             mock_document = MagicMock()
-            mock_document._attribute_defaults = {
-                "doc": {"title": f"The {prefix} document for Doorstop"}
+            mock_document._attributes_doc = {
+                "title": f"The {prefix} document for Doorstop"
             }
             mock_document.prefix = prefix
             all_documents.append(mock_document)

@@ -96,6 +96,40 @@ attributes:
     k: null
 """.lstrip()
 
+YAML_DOC = """
+settings:
+  digits: 3
+  prefix: REQ
+  sep: ''
+attributes:
+  defaults:
+    i: j
+doc:
+  title: Title
+  major: '2'
+""".lstrip()
+
+YAML_LEGACY_DOC = """
+settings:
+  digits: 3
+  prefix: REQ
+  sep: ''
+attributes:
+  defaults:
+    i: j
+    doc:
+      title: Title
+      major: '2'
+""".lstrip()
+
+YAML_INVALID_DOC = """
+settings:
+  digits: 3
+  prefix: REQ
+  sep: ''
+doc: not a mapping
+""".lstrip()
+
 YAML_INCLUDE_DEFAULTS = """
 settings:
   digits: 3
@@ -211,6 +245,31 @@ class TestDocument(unittest.TestCase):
             {"a": ["b", "c"], "d": {"e": "f", "g": "h"}, "i": "j", "k": None},
         )
 
+    def test_load_doc(self):
+        """Verify the doc section is loaded separately from item defaults."""
+        self.document._file = YAML_DOC
+        self.document.load()
+        self.assertEqual(self.document._attribute_defaults, {"i": "j"})
+        self.assertEqual(
+            self.document._attributes_doc, {"title": "Title", "major": "2"}
+        )
+
+    def test_load_legacy_doc(self):
+        """Verify a doc block under defaults is moved out of the item defaults."""
+        self.document._file = YAML_LEGACY_DOC
+        with self.assertLogs("doorstop.core.document", "WARNING"):
+            self.document.load()
+        self.assertEqual(self.document._attribute_defaults, {"i": "j"})
+        self.assertEqual(
+            self.document._attributes_doc, {"title": "Title", "major": "2"}
+        )
+
+    def test_load_invalid_doc(self):
+        """Verify a doc section that is not a mapping fails."""
+        self.document._file = YAML_INVALID_DOC
+        msg = "^invalid value for 'doc' in: .*\\.doorstop.yml$"
+        self.assertRaisesRegex(DoorstopError, msg, self.document.load)
+
     def test_load_defaults_via_include(self):
         """Verify loaded defaults for attributes via includes."""
         self.document._file = YAML_INCLUDE_DEFAULTS
@@ -259,6 +318,13 @@ class TestDocument(unittest.TestCase):
         self.assertIn("attributes:", self.document._file)
         self.assertIn("  defaults:", self.document._file)
         self.assertIn("    key: value", self.document._file)
+
+    def test_save_doc(self):
+        """Verify saving of the doc section."""
+        self.document._attributes_doc = {"title": "Title"}
+        self.document.save()
+        self.assertIn("doc:\n  title: Title", self.document._file)
+        self.assertNotIn("attributes:", self.document._file)
 
     def test_no_save_missing_custom_defaults(self):
         """Verify not saving of missing custom default attributes."""
@@ -534,6 +600,14 @@ outline:
         self.document._file = "text: 'abc'"
         self.document.add_item(defaults="mock.yml")
         mock_set_attributes.assert_called_once_with({"text": "abc"})
+
+    @patch("doorstop.core.item.Item.set_attributes")
+    def test_add_item_without_legacy_doc(self, mock_set_attributes):
+        """Verify a legacy doc block under defaults is not copied into new items."""
+        self.document._file = YAML_LEGACY_DOC
+        self.document.load(reload=True)
+        self.document.add_item()
+        mock_set_attributes.assert_called_once_with({"i": "j"})
 
     @patch("doorstop.core.item.Item.new")
     def test_add_item_empty(self, mock_new):
