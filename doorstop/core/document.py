@@ -26,6 +26,7 @@ from doorstop.core.base import (
     auto_save,
     delete_document,
     edit_document,
+    load_doc_attributes,
 )
 from doorstop.core.item import Item
 from doorstop.core.types import UID, Level, Prefix
@@ -206,14 +207,10 @@ class Document(BaseValidatable, BaseFileObject):  # pylint: disable=R0902
             try:
                 if key == "prefix":
                     self._data[key] = Prefix(value)
-                elif key == "sep":
-                    self._data[key] = value.strip()
-                elif key == "parent":
+                elif key in ("sep", "parent", "itemformat"):
                     self._data[key] = value.strip()
                 elif key == "digits":
                     self._data[key] = int(value)  # type: ignore
-                elif key == "itemformat":
-                    self._data[key] = value.strip()
                 else:
                     msg = "unexpected document setting '{}' in: {}".format(
                         key, self.config
@@ -231,27 +228,12 @@ class Document(BaseValidatable, BaseFileObject):  # pylint: disable=R0902
                 self._extended_reviewed = sorted(set(v for v in value))
             elif key == "publish":
                 self._attribute_publish = value
-            elif key == "doc":
-                if value is not None and not isinstance(value, dict):
-                    msg = "invalid value for 'doc' in: {}".format(self.config)
-                    raise DoorstopError(msg)
-                self._attributes_doc = value
-            else:
+            elif key != "doc":  # 'doc' is read by load_doc_attributes() below
                 msg = "unexpected attributes configuration '{}' in: {}".format(
                     key, self.config
                 )
                 raise DoorstopError(msg)
-        # Legacy location: under 'defaults' it would be copied into every new item
-        if isinstance(self._attribute_defaults, dict) and (
-            "doc" in self._attribute_defaults
-        ):
-            legacy = self._attribute_defaults.pop("doc")
-            log.warning(
-                "'attributes: defaults: doc:' is deprecated,"
-                " use 'attributes: doc:' in: {}".format(self.config)
-            )
-            if self._attributes_doc is None:
-                self._attributes_doc = legacy
+        self._attributes_doc = load_doc_attributes(attributes, self.config)
 
         self.extensions = data.get("extensions", {})
 
@@ -270,10 +252,7 @@ class Document(BaseValidatable, BaseFileObject):  # pylint: disable=R0902
         for key, value in self._data.items():
             if key == "prefix":
                 sets[key] = str(value)
-            elif key == "parent":
-                if value:
-                    sets[key] = value
-            else:
+            elif key != "parent" or value:
                 sets[key] = value
         data["settings"] = sets
         # Save the attributes

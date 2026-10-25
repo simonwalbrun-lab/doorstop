@@ -119,6 +119,27 @@ def delete_document(func):
     return wrapped
 
 
+def load_doc_attributes(attributes, config):
+    """Get a document's publish metadata from its 'attributes' configuration.
+
+    A legacy 'doc' under 'defaults' is removed from the defaults in place,
+    otherwise it would be copied into every new item.
+    """
+    doc = attributes.get("doc")
+    defaults = attributes.get("defaults")
+    if isinstance(defaults, dict) and "doc" in defaults:
+        legacy = defaults.pop("doc")
+        log.warning(
+            "'attributes: defaults: doc:' is deprecated,"
+            " use 'attributes: doc:' in: {}".format(config)
+        )
+        if doc is None:
+            doc = legacy
+    if doc is not None and not isinstance(doc, dict):
+        raise DoorstopError("invalid value for 'doc' in: {}".format(config))
+    return doc
+
+
 class BaseValidatable(metaclass=abc.ABCMeta):
     """Abstract Base Class for objects that can be validated."""
 

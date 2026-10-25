@@ -258,7 +258,7 @@ class TestDocument(unittest.TestCase):
     def test_load_legacy_doc(self):
         """Verify a doc block under defaults is moved out of the item defaults."""
         self.document._file = YAML_LEGACY_DOC
-        with self.assertLogs("doorstop.core.document", "WARNING"):
+        with self.assertLogs("doorstop.core.base", "WARNING"):
             self.document.load()
         self.assertEqual(self.document._attribute_defaults, {"i": "j"})
         self.assertEqual(
