@@ -8,7 +8,7 @@ from typing import Set
 
 from doorstop import common, server
 from doorstop.cli import utilities
-from doorstop.core import editor, exporter, importer, publisher
+from doorstop.core import differ, editor, exporter, importer, publisher, vcs
 from doorstop.core.builder import build
 
 log = common.logger(__name__)
@@ -593,6 +593,37 @@ def run_publish(args, cwd, error, catch=True):
             utilities.show(line)
 
     return True
+
+
+def run_diff(args, cwd, error, catch=True):  # pylint: disable=W0613
+    """Process arguments and run the `doorstop diff` subcommand.
+
+    :param args: Namespace of CLI arguments
+    :param cwd: current working directory
+    :param error: function to call for CLI errors
+    :param catch: catch and log :class:`~doorstop.common.DoorstopError`
+
+    """
+    path = os.path.abspath(os.path.join(cwd, args.path))
+    new = args.new or "the working state"
+    utilities.show("comparing {} with {}...".format(args.old, new), flush=True)
+    with utilities.capture(catch=catch) as success:
+        try:
+            root = vcs.find_root(cwd)
+        except common.DoorstopError:
+            root = cwd  # publish_diff reports the missing git repository
+        differ.publish_diff(
+            root,
+            args.old,
+            args.new,
+            path,
+            args.prefix,
+            changed_only=args.changed_only,
+            template=args.template,
+        )
+    if success:
+        utilities.show("diff published: {}".format(path))
+    return success
 
 
 def _request_next_number(args):

@@ -21,7 +21,13 @@ from doorstop.cli.tests import (
 )
 from doorstop.core.builder import _clear_tree
 from doorstop.core.document import Document
-from doorstop.core.tests.helpers import on_error_with_retry
+from doorstop.core.tests.helpers import (
+    commit,
+    make_git_repo,
+    on_error_with_retry,
+    write_document,
+    write_item,
+)
 
 REQ_COUNT = 23
 ALL_COUNT = 57
@@ -899,3 +905,33 @@ class TestLogging(unittest.TestCase):
         """Verify verbose level -1 can be set."""
         self.assertIs(None, main(["-q"]))
         self.assertEqual(-1, common.verbosity)
+
+
+@unittest.skipUnless(os.getenv(ENV), REASON)
+class TestDiff(TempTestCase):
+    """Integration tests for the 'doorstop diff' command."""
+
+    def setUp(self):
+        super().setUp()
+        self.repo = make_git_repo()
+        write_document(self.repo, "reqs", "REQ")
+        write_item(self.repo, "reqs/REQ001.yml", {"text": "Old.", "level": "1.1"})
+        write_item(self.repo, "reqs/REQ003.yml", {"text": "Same.", "level": "1.3"})
+        commit(self.repo, "base", tag="v1.0")
+        write_item(self.repo, "reqs/REQ001.yml", {"text": "New.", "level": "1.1"})
+        commit(self.repo, "change", tag="v1.1")
+        self.out = os.path.join(self.temp, "out")
+        os.chdir(self.repo)
+
+    def tearDown(self):
+        super().tearDown()
+        shutil.rmtree(self.repo, onerror=on_error_with_retry)
+
+    def test_diff_changed_only(self):
+        """Verify 'doorstop diff --changed-only' leaves out unchanged items."""
+        args = ["diff", "all", self.out, "v1.0", "v1.1", "--changed-only"]
+        self.assertIs(None, main(args))
+        path = os.path.join(self.out, "documents", "REQ.html")
+        text = common.read_text(path)
+        self.assertIn('id="REQ001"', text)
+        self.assertNotIn('id="REQ003"', text)

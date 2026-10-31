@@ -1,6 +1,7 @@
 # Unreleased
 
 - Fixed structured `attributes.publish` entries crashing plain text and LaTeX publishing: `TextPublisher` and `LaTeXPublisher` now parse mapping entries like `MarkdownPublisher` instead of passing the raw dict to `Item.attribute()`.
+- Added `doorstop diff` to publish an HTML redline of the documents between two git revisions (tags, hashes or the working state), including changed pictures.
 - Fixed importing over existing items: items stored in subfolders of a document now stay in their folder instead of being moved to the document root.
 - Fixed publishing with templates: several documents may now have a `template` folder, only the folder providing the requested template is copied, and a single document can use a template from another document in its tree.
 - Improved speed on large trees: reworked O(n^2) child search by usage of index. Becomes significant at ~500 items.
